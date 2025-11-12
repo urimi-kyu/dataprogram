@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 기반 MDD 예측</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .container { max-width: 600px; }
+        #prediction-result { margin-top: 30px; }
+        .mdd-box {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #dc3545; /* Bootstrap danger color */
+            border: 3px solid #dc3545;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="mb-4 text-center">AI 기반 최대 낙폭 (MDD) 예측</h1>
+    <p class="text-center">
+        <a href="/">섹터 분석으로 돌아가기 &#x25BA;</a>
+    </p>
+
+    <form id="prediction-form" class="bg-light p-4 rounded shadow-sm">
+        <div class="mb-3 text-center">
+            <p class="lead">오늘의 뉴스 강도(산불, 태풍, 지진 등 8종 재난)를 기반으로 시장의 충격(MDD)을 예측합니다.</p>
+        </div>
+        
+        <input type="hidden" name="event_name" id="event-name-input" value="오늘 뉴스 강도 분석">
+
+        <button type="submit" class="btn btn-danger w-100">오늘의 MDD 예측 실행</button>
+        <p class="mt-2 text-end text-sm text-info">주의: 예측 모델의 정확도는 보장되지 않을 수 있습니다.</p>
+    </form>
+
+    <div id="prediction-result">
+        <div id="loading-indicator" class="text-center" style="display:none;">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+            <p class="mt-2">모델이 예측 중입니다. 네이버 API 호출 중...</p>
+        </div>
+        
+        <div id="error-message" class="alert alert-danger" style="display:none;"></div>
+
+        <div id="result-display" style="display:none;">
+            <h4 class="mt-4 text-center">AI 예측 최대 낙폭 (최악의 섹터)</h4>
+            <div id="mdd-output" class="mdd-box"></div>
+            <p class="text-center mt-3" id="info-text"></p>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $('#prediction-form').submit(function(e) {
+        e.preventDefault(); 
+
+        // --- 초기화 및 로딩 설정 ---
+        $('#loading-indicator').show();
+        $('#error-message').hide().empty();
+        $('#result-display').hide();
+
+        $.ajax({
+            type: 'POST',
+            url: '/predict_mdd',
+            // 재난명을 포함한 폼 데이터 전송 (MDD 로직에서는 event_name을 무시함)
+            data: $('#prediction-form').serialize(),
+            dataType: 'json',
+            success: function(response) {
+                $('#loading-indicator').hide();
+                
+                if (response.error) {
+                    $('#error-message').html('<strong>예측 실패:</strong> ' + response.error).show();
+                    return;
+                }
+                
+                // 결과 표시
+                $('#mdd-output').text(response.predicted_mdd);
+                $('#info-text').html(
+                    `분석 기준일: <strong>${response.event_date}</strong> (오늘의 뉴스 기준)<br>` +
+                    `상세 예측: ${response.detail}`
+                );
+                $('#result-display').show();
+            },
+            error: function(xhr) {
+                $('#loading-indicator').hide();
+                let errorMsg = '서버 통신 중 오류가 발생했습니다.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                $('#error-message').html('<strong>예측 중 치명적인 오류:</strong> ' + errorMsg).show();
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
