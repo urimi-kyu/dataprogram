@@ -11,13 +11,46 @@ import base64
 from urllib.parse import unquote
 import sys
 import mdd_prediction_service  # 📌 MDD 예측 서비스 모듈 임포트
+import matplotlib.font_manager as fm
 
 # ---------------------------------------------------
 plt.switch_backend('Agg')
 # ---------------------------------------------------
+import platform
+from matplotlib import font_manager, rc
+
+def set_korean_font():
+    """그래프를 그리기 전에 호출하여 한글 폰트를 설정합니다."""
+    # 1. 운영체제별 기본 한글 폰트 설정
+    system_name = platform.system()
+    
+    if system_name == 'Windows':
+        # 윈도우 사용자는 '맑은 고딕' (가장 확실함)
+        rc('font', family='Malgun Gothic')
+    elif system_name == 'Darwin':
+        # 맥 사용자는 'AppleGothic'
+        rc('font', family='AppleGothic')
+    else:
+        # 리눅스 등은 나눔글꼴 시도
+        rc('font', family='NanumGothic')
+
+    # 2. 마이너스 기호 깨짐 방지
+    rc('axes', unicode_minus=False)
 
 # --- Flask 앱 초기화 ---
 app = Flask(__name__)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_PATH = os.path.join(BASE_DIR, 'NanumGothic.ttf')
+
+if os.path.exists(FONT_PATH):
+    fm.fontManager.addfont(FONT_PATH)
+    font_name = fm.FontProperties(fname=FONT_PATH).get_name()
+    plt.rcParams['font.family'] = font_name
+else:
+    # 폰트 파일이 없으면, 윈도우라면 말굿고딕 같은 걸 시도
+    plt.rcParams['font.family'] = 'Malgun Gothic'
+    plt.rcParams['axes.unicode_minus'] = False
 
 # --- 설정값 및 상수 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,18 +60,18 @@ ANALYSIS_MONTHS_AFTER = 3
 
 # KOSPI 200 Big Sector Index Codes (총 12개)
 SECTOR_CODES = {
-    'Market (KOSPI)': '1001',
-    'KOSPI 200 - Communication Services': '1150',
-    'KOSPI 200 - Construction': '1151',
-    'KOSPI 200 - Heavy Industry': '1152',
-    'KOSPI 200 - Steel/Materials': '1153',
-    'KOSPI 200 - Energy/Chemicals': '1154',
-    'KOSPI 200 - Information Technology': '1155',
-    'KOSPI 200 - Finance': '1156',
-    'KOSPI 200 - Consumer Staples': '1157',
-    'KOSPI 200 - Consumer Discretionary': '1158',
-    'KOSPI 200 - Industrials': '1159',
-    'KOSPI 200 - Healthcare': '1160'
+    '코스피 전체 시장': '1001',
+    '코스피200 통신서비스': '1150',
+    '코스피200 건설': '1151',
+    '코스피200 중공업': '1152',
+    '코스피200 철강·소재': '1153',
+    '코스피200 에너지·화학': '1154',
+    '코스피200 정보기술': '1155',
+    '코스피200 금융': '1156',
+    '코스피200 필수소비재': '1157',
+    '코스피200 자유소비재': '1158',
+    '코스피200 산업재': '1159',
+    '코스피200 헬스케어': '1160'
 }
 
 # 홈화면 주가지수 위젯
@@ -243,12 +276,12 @@ def run_analysis_for_event(event_name):
 
     # --- 4. 그래프 생성 및 Base64 인코딩 로직 ---
 
-    plt.rcParams['font.family'] = 'Arial'
-    plt.rcParams['axes.unicode_minus'] = False
-
     # 4-1. 통합 비교 차트 생성 (Base64)
     plt.figure(figsize=(15, 8))
+
     plt.style.use('seaborn-v0_8-whitegrid')
+    set_korean_font()
+
     for sector_name, prices in all_sector_prices.items():
         plt.plot(prices.index, prices.values, label=sector_name)
     plt.title(
@@ -288,7 +321,10 @@ def run_analysis_for_event(event_name):
 
         # 차트 그리기
         plt.figure(figsize=(10, 6))
+
         plt.style.use('seaborn-v0_8-whitegrid')
+        set_korean_font()
+
         plt.plot(prices_norm.index, prices_norm.values,
                  label=sector_name, color='blue')
         plt.scatter(peak_date, peak_price_norm, color='green',
@@ -357,8 +393,6 @@ def analyze_individual_stock(event_name, corp_name, months_before, months_after)
         analysis = analyze_sector_performance(df_ohlcv['Close'])
 
         # --- 차트 생성 로직 ---
-        plt.rcParams['font.family'] = 'Arial'
-        plt.rcParams['axes.unicode_minus'] = False
 
         prices_raw = df_ohlcv['Close']
         prices_norm = (prices_raw / prices_raw.iloc[0]) * 100
@@ -378,6 +412,7 @@ def analyze_individual_stock(event_name, corp_name, months_before, months_after)
         # 차트 그리기
         plt.figure(figsize=(10, 6))
         plt.style.use('seaborn-v0_8-whitegrid')
+        set_korean_font()
 
         plt.plot(prices_norm.index, prices_norm.values,
                  label=f'{corp_name} ({ticker})', color='blue')
@@ -507,9 +542,14 @@ def analyze_web_data():
     if 'error' in analysis_data:
         return jsonify(analysis_data), 400
 
-    df_html = analysis_data['df_results'].set_index('Sector Name')
+    # 1) 테이블용 HTML
+    df_results = analysis_data['df_results']   # 컬럼: Sector Name, MDD (%), Final DD (%), Final Return (%)
+    df_html = df_results.set_index('Sector Name')
     table_html = df_html.to_html(
         classes='table table-striped', float_format='%.2f')
+
+    # 2) 히트맵용 JSON 데이터
+    sector_results = df_results.to_dict(orient='records')
 
     return jsonify({
         'table_html': table_html,
@@ -518,8 +558,10 @@ def analyze_web_data():
         'start_date': analysis_data['start_date'],
         'end_date': analysis_data['end_date'],
         'combined_chart_base64': analysis_data['combined_chart'],
-        'individual_charts': analysis_data['individual_charts']
+        'individual_charts': analysis_data['individual_charts'],
+        'sector_results': sector_results      # ✅ 추가된 부분
     })
+
 
 
 @app.route('/individual_analysis', methods=['GET'])
@@ -541,16 +583,55 @@ def handle_individual_analysis():
     if not event_name or not corp_name:
         return jsonify({'error': '재난 이름과 회사 이름을 모두 입력해주세요.'}), 400
 
+    # 1. 개별 종목 분석 (기존 로직)
     analysis_result = analyze_individual_stock(event_name, corp_name,
                                                ANALYSIS_MONTHS_BEFORE,
                                                ANALYSIS_MONTHS_AFTER)
 
     if 'error' in analysis_result:
         return jsonify(analysis_result), 400
+    
+    # ---------------------------------------------------------
+    # 2. [추가됨] 사이드바용 TOP5 데이터 생성 (섹터 데이터 활용)
+    # ---------------------------------------------------------
+    top_gainers = []
+    top_losers = []
 
+    try:
+        # 전체 시장(섹터) 흐름을 파악하기 위해 기존 함수 재사용
+        sector_data = run_analysis_for_event(event_name)
+        
+        if 'df_results' in sector_data and not sector_data['df_results'].empty:
+            df = sector_data['df_results']  # 컬럼: Sector Name, Final Return (%), ...
+            
+            # 수익률 기준 내림차순 정렬
+            df_sorted = df.sort_values(by='Final Return (%)', ascending=False)
+
+            # 상위 5개 (Gainers)
+            for _, row in df_sorted.head(5).iterrows():
+                top_gainers.append({
+                    'name': row['Sector Name'],
+                    'change_pct': row['Final Return (%)']
+                })
+
+            # 하위 5개 (Losers) - 뒤에서 5개를 뽑아 다시 오름차순(큰 하락폭 먼저) 정렬
+            for _, row in df_sorted.tail(5).sort_values(by='Final Return (%)', ascending=True).iterrows():
+                top_losers.append({
+                    'name': row['Sector Name'],
+                    'change_pct': row['Final Return (%)']
+                })
+                
+    except Exception as e:
+        # 사이드바 데이터 생성 실패해도 메인 분석은 보여주기 위해 pass
+        print(f"Top list generation failed: {e}")
+        pass
+
+    # 3. 최종 반환 (top_gainers, top_losers 추가)
     return jsonify({
         'status': 'success',
-        'analysis_data': analysis_result
+        'analysis_data': analysis_result,
+        'top_gainers': top_gainers,
+        'top_losers': top_losers
     })
 
 # --- 8. MDD 예측 라우트 (오류 해결됨) ---
