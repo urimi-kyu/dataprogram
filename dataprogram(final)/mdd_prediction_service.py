@@ -3,6 +3,7 @@ import json
 import datetime
 import numpy as np
 import sys
+import urllib.parse
 import mdd_predictor  # 👈 mdd_predictor.py 임포트
 
 # --- 1. Naver API 및 상수 ---
@@ -33,6 +34,54 @@ SECTORS = [
     "KOSPI 200 - Industrials",
     "KOSPI 200 - Healthcare"
 ]
+
+# FE 뉴스 가져오기
+def fetch_disaster_news(keyword, max_results=3):
+    """특정 재난 키워드에 대한 최신 뉴스 리스트(title, link) 반환"""
+    TODAY_DATE_STR = datetime.date.today().strftime("%Y%m%d")
+
+    encText = urllib.parse.quote(f"{keyword} 재난 피해")
+
+    url = (
+        f"https://openapi.naver.com/v1/search/news.json?query={encText}"
+        f"&display={max_results}&sort=sim&start=1"
+        f"&enddate={TODAY_DATE_STR}&startdate={TODAY_DATE_STR}"
+    )
+
+    request = urllib.request.Request(url)
+    request.add_header("X-Naver-Client-Id", CLIENT_ID)
+    request.add_header("X-Naver-Client-Secret", CLIENT_SECRET)
+
+    try:
+        response = urllib.request.urlopen(request)
+        rescode = response.getcode()
+
+        if rescode != 200:
+            return []
+
+        response_body = response.read()
+        result = json.loads(response_body.decode('utf-8'))
+
+        items = result.get("items", [])
+        news_list = []
+        for item in items:
+            news_list.append({
+                "title": item.get("title", ""),
+                "link": item.get("link", ""),
+                "description": item.get("description", "")
+            })
+        return news_list
+
+    except Exception:
+        return []
+
+def get_today_disaster_news_grouped(max_results=3):
+    """MODEL_INPUT_ORDER 기준 8개 재난별 뉴스 리스트 반환"""
+    grouped = {}
+    for disaster in MODEL_INPUT_ORDER:
+        grouped[disaster] = fetch_disaster_news(disaster, max_results=max_results)
+    return grouped
+# FE END
 
 # --- 2. 뉴스 크롤링 및 벡터 변환 함수 ---
 

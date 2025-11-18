@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>재난 기반 시장 분석 대시보드</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 70px; background-color: #f5f6fa; }
+        .news-card {
+            height: 100%;
+        }
+        .news-title {
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+        .disaster-badge {
+            font-weight: bold;
+            font-size: 1.05rem;
+        }
+        
+        .hero-box {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 16px 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* 섹터 리스트 영역 */
+        .sector-list {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        /* 각 섹터 줄 스타일 */
+        .sector-item {
+            font-size: 0.85rem;
+            padding: 4px 8px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 홀수/짝수 줄 배경 음영 */
+        .sector-item:nth-child(odd) {
+            background-color: #f8f9fa;   /* 연한 회색 */
+        }
+
+        .sector-item:nth-child(even) {
+            background-color: #ffffff;   /* 흰색 */
+        }
+
+        /* 줄 사이 간격 */
+        .sector-item + .sector-item {
+            margin-top: 4px;
+        }
+        .mdd-highlight {
+            background: #ffe5e5;
+            border-left: 5px solid #dc3545;
+        }
+        .section-title {
+            margin: 24px 0 12px;
+        }
+        .navbar-brand span {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 상단 네비게이션 바 -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <span>재난 기반 시장 분석</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarMain">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/">홈</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/sector">섹터별 주식시장 영향분석</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/individual_analysis">개별종목 재난 영향분석</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/predict_mdd">AI기반 최대낙폭(MDD) 예측</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+
+    <!-- 상단 소개 + MDD 예측 CTA -->
+    <div class="hero-box row">
+        <div class="col-md-8">
+            <h3>오늘의 재난 기반 시장 인사이트</h3>
+            <p class="text-muted mb-2">
+                산불, 지진, 태풍 등 8종 재난 관련 뉴스를 실시간으로 모니터링하고,
+                주식 시장과 섹터별 영향을 한 곳에서 확인합니다.
+            </p>
+            <p class="mb-0"><small>뉴스 데이터: 네이버 뉴스 API / 주가지수: KOSPI 200 섹터 지수</small></p>
+        </div>
+        <div class="col-md-4">
+            <div class="hero-box mdd-highlight">
+                <h5 class="mb-2">📉 오늘의 MDD 예측</h5>
+                <p id="mdd-summary" class="mb-2 small text-muted">예측을 불러오는 중...</p>
+                <a href="/predict_mdd" class="btn btn-danger w-100">
+                    자세히 보기
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <h4 class="section-title">재난 종류별 최신 뉴스</h4>
+<p class="text-muted mb-3">
+    모델에서 사용하는 8종 재난(산불, 지진, 태풍, 감염병, 가뭄, 폭설, 홍수, 기타)별로 오늘의 주요 기사를 보여줍니다.
+</p>
+
+<div class="row">
+
+    <!-- 왼쪽: 재난 뉴스 카드들 -->
+    <div class="col-lg-9 col-md-8">
+        <div id="disaster-news-row" class="row g-3">
+            <!-- JS로 카드들이 채워짐 -->
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-4">
+    <!-- 📊 오늘의 주요 지수 hero-box -->
+    <div class="hero-box mb-3">
+        <h5 class="mb-2">📊 오늘의 주요 지수</h5>
+        <p class="text-muted small mb-2">최근 거래일 기준 KOSPI / KOSDAQ / KOSPI 200</p>
+        <div id="main-index-list">
+            <p class="small text-muted mb-0">지수 정보를 불러오는 중...</p>
+        </div>
+    </div>
+
+    <!-- 🧩 섹터별 등락률 hero-box -->
+    <div class="hero-box">
+        <h6 class="mb-2">📈 섹터별 등락률</h6>
+        <p class="text-muted small mb-2">KOSPI 200 섹터 기준</p>
+        <div id="sector-change-list">
+            <p class="small text-muted mb-0">섹터 데이터를 불러오는 중...</p>
+        </div>
+    </div>
+</div>
+
+
+</div>
+
+
+</div>
+
+<footer>
+    <p>                                              </p>
+</footer>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // 1) 재난별 뉴스 가져오기
+    function loadDisasterNews() {
+        $.getJSON('/api/disaster_news', function(res) {
+            const news = res.news;
+            const $row = $('#disaster-news-row');
+            $row.empty();
+
+            // ✅ 내가 원하는 순서 배열
+            const disasterOrder = [
+                '태풍',
+                '지진',
+                '홍수',
+                '산불',
+                '감염병',
+                '폭설',
+                '가뭄',
+                '기타'
+            ];
+
+            disasterOrder.forEach(function(disaster) {
+                const articles = news[disaster] || [];
+                // 아무 뉴스도 없으면 스킵하고 싶으면 이 조건 추가:
+                // if (!articles.length) return;
+
+                let articlesHtml = '';
+                if (articles.length === 0) {
+                    articlesHtml = '<p class="text-muted small mb-0">관련 뉴스가 없습니다.</p>';
+                } else {
+                    articles.forEach(function(item) {
+                        articlesHtml += `
+                            <div class="mb-2">
+                                <div class="news-title">
+                                    <a href="${item.link}" target="_blank" class="text-decoration-none">
+                                        ${item.title}
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                const colHtml = `
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card news-card shadow-sm">
+                            <div class="card-body">
+                                <div class="disaster-badge mb-2">${disaster}</div>
+                                ${articlesHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $row.append(colHtml);
+            });
+        });
+    }
+
+
+    // 2) 홈에서 간단하게 MDD 요약만 가져오기 (실패해도 UI만 에러 표시)
+    function loadMddSummary() {
+        $.ajax({
+            type: 'POST',
+            url: '/predict_mdd',
+            data: { event_name: '홈 화면 자동 예측' },
+            dataType: 'json',
+            success: function(response) {
+                if (response.error) {
+                    $('#mdd-summary').text('예측 오류: ' + response.error);
+                    return;
+                }
+                $('#mdd-summary').text(
+                    `${response.event_date} 기준 최악의 섹터 MDD: ${response.predicted_mdd}`
+                );
+            },
+            error: function() {
+                $('#mdd-summary').text('MDD 예측 데이터를 가져오는 데 실패했습니다.');
+            }
+        });
+    }
+
+    // 3) 주요 지수 로딩
+    function loadMainIndices() {
+        $.getJSON('/api/main_indices', function(res) {
+            const $list = $('#main-index-list');
+
+            if (res.status !== 'success') {
+                $list.html('<p class="text-danger small mb-0">지수 데이터를 불러오지 못했습니다.</p>');
+                return;
+            }
+
+            const indices = res.indices;
+            if (!indices || indices.length === 0) {
+                $list.html('<p class="text-muted small mb-0">표시할 지수 데이터가 없습니다.</p>');
+                return;
+            }
+
+            let html = '<ul class="list-unstyled mb-0">';
+            indices.forEach(function(idx) {
+                const sign = idx.change > 0 ? '+' : '';
+                const colorClass = idx.change > 0 ? 'text-danger' : (idx.change < 0 ? 'text-primary' : 'text-muted');
+
+                html += `
+                    <li class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>${idx.name}</strong></span>
+                            <span>${idx.close}</span>
+                        </div>
+                        <div class="d-flex justify-content-between small ${colorClass}">
+                            <span>${sign}${idx.change}</span>
+                            <span>${sign}${idx.change_pct}%</span>
+                        </div>
+                    </li>
+                `;
+            });
+            html += '</ul>';
+
+            $list.html(html);
+        }).fail(function() {
+            $('#main-index-list').html('<p class="text-danger small mb-0">지수 API 호출 중 오류가 발생했습니다.</p>');
+        });
+    }
+
+    // 4) 섹터별 등락률 로딩
+    function loadSectorChanges() {
+    $.getJSON('/api/sector_changes', function(res) {
+        const $list = $('#sector-change-list');
+
+        if (res.status !== 'success') {
+            $list.html('<p class="text-danger small mb-0">섹터 데이터를 불러오지 못했습니다.</p>');
+            return;
+        }
+
+        const sectors = res.sectors || [];
+        if (sectors.length === 0) {
+            $list.html('<p class="text-muted small mb-0">표시할 섹터 데이터가 없습니다.</p>');
+            return;
+        }
+
+        let html = '<div class="sector-list">';
+        sectors.forEach(function(sec) {
+            const sign = sec.change > 0 ? '+' : '';
+            const colorClass =
+                sec.change > 0 ? 'text-danger' :
+                (sec.change < 0 ? 'text-primary' : 'text-muted');
+
+            const shortName = sec.name.replace('KOSPI 200 - ', '');
+
+            html += `
+                <div class="sector-item">
+                    <span>${shortName}</span>
+                    <span class="${colorClass}">${sign}${sec.change_pct}%</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        $list.html(html);
+    }).fail(function() {
+        $('#sector-change-list').html('<p class="text-danger small mb-0">섹터 API 호출 중 오류가 발생했습니다.</p>');
+        });
+    }
+
+
+
+
+    $(document).ready(function() {
+        loadDisasterNews();
+        loadMddSummary();
+        loadMainIndices();
+        loadSectorChanges();
+    });
+</script>
+
+</body>
+</html>

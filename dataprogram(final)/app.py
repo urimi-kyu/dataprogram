@@ -41,6 +41,47 @@ SECTOR_CODES = {
     'KOSPI 200 - Healthcare': '1160'
 }
 
+# 홈화면 주가지수 위젯
+MAIN_INDEX_CODES = {
+    'KOSPI': '1001',
+    'KOSDAQ': '2001',
+    'KOSPI 200': '1028',
+}
+
+from datetime import datetime, timedelta
+
+def get_recent_index_quote(code, name):
+    """최근 며칠 간 데이터 중 마지막 거래일 기준 시가/종가/등락률 계산"""
+    end = datetime.today()
+    start = end - timedelta(days=10)
+
+    start_str = start.strftime('%Y%m%d')
+    end_str = end.strftime('%Y%m%d')
+
+    df = stock.get_index_ohlcv_by_date(start_str, end_str, code)
+
+    if df.empty:
+        raise ValueError(f"{name} 지수 데이터를 찾을 수 없습니다.")
+
+    last = df.iloc[-1]
+    close = float(last['종가'])
+
+    if len(df) > 1:
+        prev_close = float(df.iloc[-2]['종가'])
+        change = close - prev_close
+        change_pct = (change / prev_close) * 100
+    else:
+        change = 0.0
+        change_pct = 0.0
+
+    return {
+        "name": name,
+        "close": round(close, 2),
+        "change": round(change, 2),
+        "change_pct": round(change_pct, 2),
+    }
+# 홈 화면 끝
+
 # --- 1. 분석 유틸리티 함수 정의 ---
 
 
@@ -393,8 +434,58 @@ def analyze_individual_stock(event_name, corp_name, months_before, months_after)
 
 # --- 7. Flask 라우팅 설정 ---
 
+@app.route('/api/disaster_news', methods=['GET'])
+def api_disaster_news():
+    try:
+        news_grouped = mdd_prediction_service.get_today_disaster_news_grouped(max_results=3)
+        return jsonify({'status': 'success', 'news': news_grouped})
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+    
+@app.route('/api/main_indices', methods=['GET'])
+def api_main_indices():
+    # 홈 화면 오른쪽 사이드에 보여줄 주요 지수 정보
+    indices = []
+    for name, code in MAIN_INDEX_CODES.items():
+        try:
+            info = get_recent_index_quote(code, name)
+            indices.append(info)
+        except Exception as e:
+            # 하나 실패해도 나머지는 보여주기
+            continue
+
+    if not indices:
+        return jsonify({'status': 'error', 'error': '지수 데이터를 불러오지 못했습니다.'}), 500
+
+    return jsonify({'status': 'success', 'indices': indices})
+
+@app.route('/api/sector_changes', methods=['GET'])
+def api_sector_changes():
+    # KOSPI 200 섹터별 등락률 위젯용 데이터
+    sectors = []
+    for name, code in SECTOR_CODES.items():
+        try:
+            info = get_recent_index_quote(code, name)  # close, change, change_pct
+            sectors.append(info)
+        except Exception:
+            continue
+
+    if not sectors:
+        return jsonify({'status': 'error', 'error': '섹터 지수 데이터를 불러오지 못했습니다.'}), 500
+
+    # 등락률 기준 내림차순 정렬
+    sectors_sorted = sorted(sectors, key=lambda x: x['change_pct'], reverse=True)
+
+    return jsonify({'status': 'success', 'sectors': sectors_sorted})
+
+
+
 @app.route('/', methods=['GET'])
-def index():
+def home_page():
+    return render_template('home.html')
+
+@app.route('/sector', methods=['GET'])
+def sector_page():
     try:
         _, events_by_type = get_disaster_types_and_events()
         disasters_flat = [event for sublist in events_by_type.values()
