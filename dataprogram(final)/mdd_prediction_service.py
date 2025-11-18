@@ -21,18 +21,18 @@ DISASTERS_TO_CHECK = MODEL_INPUT_ORDER + ["폭우"]
 
 # 모델이 사용하는 12개 섹터 이름 (MDD 예측 출력 차원 12와 일치)
 SECTORS = [
-    "Market (KOSPI)",
-    "KOSPI 200 - Communication Services",
-    "KOSPI 200 - Construction",
-    "KOSPI 200 - Heavy Industry",
-    "KOSPI 200 - Steel/Materials",
-    "KOSPI 200 - Energy/Chemicals",
-    "KOSPI 200 - Information Technology",
-    "KOSPI 200 - Finance",
-    "KOSPI 200 - Consumer Staples",
-    "KOSPI 200 - Consumer Discretionary",
-    "KOSPI 200 - Industrials",
-    "KOSPI 200 - Healthcare"
+    "코스피 전체 시장",            # Market (KOSPI)
+    "코스피200 통신서비스",        # Communication Services
+    "코스피200 건설",              # Construction
+    "코스피200 중공업",            # Heavy Industry
+    "코스피200 철강·소재",         # Steel/Materials
+    "코스피200 에너지·화학",       # Energy/Chemicals
+    "코스피200 정보기술",          # Information Technology
+    "코스피200 금융",              # Finance
+    "코스피200 필수소비재",        # Consumer Staples
+    "코스피200 자유소비재",        # Consumer Discretionary
+    "코스피200 산업재",            # Industrials
+    "코스피200 헬스케어"           # Healthcare
 ]
 
 # FE 뉴스 가져오기
@@ -178,6 +178,15 @@ def get_today_mdd_prediction(main_keyword):
     detail_results = [
         f"{SECTORS[i]}: {mdd_predictions_vector[i]:.2f}%" for i in range(len(SECTORS))]
     detail_text = "전 섹터 예측 MDD: " + ", ".join(detail_results)
+    
+    # 데이터를 리스트 형태로 가공
+    sector_data = []
+    for i, sector_name in enumerate(SECTORS):
+        value = mdd_predictions_vector[i]
+        sector_data.append({
+            'name': sector_name,
+            'value': float(value)
+        })
 
     # 오늘 날짜를 기준으로 예측했다고 표시
     event_date_str = datetime.date.today().strftime("%Y-%m-%d")
@@ -187,5 +196,6 @@ def get_today_mdd_prediction(main_keyword):
         'event_name': main_keyword,
         'event_date': event_date_str,
         'predicted_mdd': f"{max_mdd_value:.2f}% ({max_mdd_sector})",
-        'detail': detail_text
+        'detail': detail_text,
+        'sector_data': sector_data
     }

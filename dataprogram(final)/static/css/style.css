@@ -1,0 +1,38 @@
+body {
+    padding-top: 70px;
+    background-color: #f5f6fa;
+}
+
+.main-container {
+    max-width: 1200px;
+}
+
+.card-box {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 1.0rem;
+    font-size: 0.95rem;
+}
+
+.hero-box {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.section-title {
+    margin: 24px 0 12px;
+}

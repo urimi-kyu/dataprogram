@@ -1,63 +1,138 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>AI 기반 MDD 예측</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { padding-top: 20px; }
-        .container { max-width: 600px; }
-        #prediction-result { margin-top: 30px; }
-        .mdd-box {
-            font-size: 2.5em;
-            font-weight: bold;
-            color: #dc3545; /* Bootstrap danger color */
-            border: 3px solid #dc3545;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="container">
-    <h1 class="mb-4 text-center">AI 기반 최대 낙폭 (MDD) 예측</h1>
-    <p class="text-center">
-        <a href="/">섹터 분석으로 돌아가기 &#x25BA;</a>
+{% block title %}AI 기반 최대 낙폭(MDD) 예측{% endblock %}
+{% block nav_mdd %}active{% endblock %}
+
+{% block content %}
+<style>
+    #prediction-result {
+        margin-top: 30px;
+    }
+
+    .sector-list-container {
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        overflow: hidden; /* 모서리 둥글게 유지 */
+        margin-top: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .sector-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        border-bottom: 1px solid #f1f3f5;
+        font-size: 0.95rem;
+    }
+
+    /* 마지막 줄은 선 없애기 */
+    .sector-row:last-child {
+        border-bottom: none;
+    }
+
+    /* 짝수 번째 줄 배경색 (줄무늬 효과) */
+    .sector-row:nth-child(even) {
+        background-color: #f8f9fa; /* 연한 회색 */
+    }
+    
+    .sector-row:nth-child(odd) {
+        background-color: #ffffff; /* 흰색 */
+    }
+
+    .sector-name {
+        font-weight: 500;
+        color: #495057;
+    }
+
+    .sector-value {
+        font-weight: 700;
+        font-family: 'Consolas', monospace; /* 숫자 가독성 */
+    }
+
+    /* 한국 주식 색상: 상승(빨강), 하락(파랑) */
+    .val-up { color: #dc3545; }
+    .val-down { color: #0d6efd; }
+
+    .mdd-box {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #dc3545; /* Bootstrap danger */
+        border: 3px solid #dc3545;
+        padding: 28px 18px;
+        border-radius: 15px;
+        text-align: center;
+        background-color: #fff;
+    }
+
+    #info-text {
+        font-size: 0.95rem;
+    }
+</style>
+
+{% if error %}
+<div class="alert alert-danger mt-3">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="card-box mb-4">
+    <h1 class="page-title text-center">AI 기반 최대 낙폭 (MDD) 예측</h1>
+    <p class="page-subtitle text-center">
+        오늘의 뉴스 강도(산불, 태풍, 지진 등 8종 재난)를 기반으로 시장의 충격(MDD)을 예측합니다.
+    </p>
+
+    <p class="text-center mb-3">
+        <a href="/" class="text-decoration-none">섹터 분석으로 돌아가기 &#x25BA;</a>
     </p>
 
     <form id="prediction-form" class="bg-light p-4 rounded shadow-sm">
         <div class="mb-3 text-center">
-            <p class="lead">오늘의 뉴스 강도(산불, 태풍, 지진 등 8종 재난)를 기반으로 시장의 충격(MDD)을 예측합니다.</p>
+            <p class="lead mb-1">
+                네이버 뉴스 데이터를 기반으로 각 재난 유형의<strong> 오늘 뉴스 강도</strong>를 측정하고,
+                학습된 모델로 최대 낙폭(MDD)을 추정합니다.
+            </p>
         </div>
-        
+
+        <!-- 실제로는 event_name을 크게 쓰진 않지만, 백엔드 요구사항 맞춰서 hidden으로 전송 -->
         <input type="hidden" name="event_name" id="event-name-input" value="오늘 뉴스 강도 분석">
 
-        <button type="submit" class="btn btn-danger w-100">오늘의 MDD 예측 실행</button>
-        <p class="mt-2 text-end text-sm text-info">주의: 예측 모델의 정확도는 보장되지 않을 수 있습니다.</p>
+        <button type="submit" class="btn btn-danger w-100 mt-2">
+            오늘의 MDD 예측 실행
+        </button>
+        <p class="mt-2 text-end text-sm text-info">
+            주의: 예측 모델의 정확도는 보장되지 않을 수 있습니다.
+        </p>
     </form>
-
-    <div id="prediction-result">
-        <div id="loading-indicator" class="text-center" style="display:none;">
-            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
-            <p class="mt-2">모델이 예측 중입니다. 네이버 API 호출 중...</p>
-        </div>
-        
-        <div id="error-message" class="alert alert-danger" style="display:none;"></div>
-
-        <div id="result-display" style="display:none;">
-            <h4 class="mt-4 text-center">AI 예측 최대 낙폭 (최악의 섹터)</h4>
-            <div id="mdd-output" class="mdd-box"></div>
-            <p class="text-center mt-3" id="info-text"></p>
-        </div>
-    </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<div id="prediction-result" class="card-box">
+    <!-- 로딩 인디케이터 -->
+    <div id="loading-indicator" class="text-center" style="display:none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">
+            모델이 예측 중입니다. 네이버 뉴스 API를 호출하고 있습니다...
+        </p>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div id="error-message" class="alert alert-danger" style="display:none;"></div>
+
+    <!-- 결과 영역 -->
+    <div id="result-display" style="display:none;">
+        <h4 class="mt-2 mb-3 text-center">AI 예측 최대 낙폭 (최악의 섹터)</h4>
+        <div id="mdd-output" class="mdd-box"></div>
+        <p class="text-center mt-3" id="info-text"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-    $('#prediction-form').submit(function(e) {
-        e.preventDefault(); 
+    $('#prediction-form').submit(function (e) {
+        e.preventDefault();
 
         // --- 초기화 및 로딩 설정 ---
         $('#loading-indicator').show();
@@ -67,36 +142,68 @@
         $.ajax({
             type: 'POST',
             url: '/predict_mdd',
-            // 재난명을 포함한 폼 데이터 전송 (MDD 로직에서는 event_name을 무시함)
+            // 재난명을 포함한 폼 데이터 전송 (MDD 로직에서는 event_name을 사실상 무시)
             data: $('#prediction-form').serialize(),
             dataType: 'json',
-            success: function(response) {
+            success: function (response) {
                 $('#loading-indicator').hide();
-                
+
                 if (response.error) {
-                    $('#error-message').html('<strong>예측 실패:</strong> ' + response.error).show();
+                    $('#error-message')
+                        .html('<strong>예측 실패:</strong> ' + response.error)
+                        .show();
                     return;
                 }
-                
+
                 // 결과 표시
                 $('#mdd-output').text(response.predicted_mdd);
-                $('#info-text').html(
-                    `분석 기준일: <strong>${response.event_date}</strong> (오늘의 뉴스 기준)<br>` +
-                    `상세 예측: ${response.detail}`
-                );
+                // 2. 상세 리스트 생성 (Hero-box 스타일 적용)
+                // sector_data가 있다면 리스트로 만들고, 없다면 기존 텍스트 방식 사용
+                if (response.sector_data) {
+                    let listHtml = '<div class="sector-list-container">';
+                    
+                    response.sector_data.forEach(function(item) {
+                        // 값에 따라 색상 클래스 결정 (0보다 크면 빨강, 작으면 파랑)
+                        // (MDD 모델 특성상 값이 마이너스면 하락, 플러스면 상승으로 해석하여 색상 적용)
+                        let valClass = item.value >= 0 ? 'val-up' : 'val-down';
+                        let sign = item.value > 0 ? '+' : ''; // 양수면 + 기호 붙이기
+
+                        listHtml += `
+                            <div class="sector-row">
+                                <span class="sector-name">${item.name}</span>
+                                <span class="sector-value ${valClass}">
+                                    ${sign}${item.value.toFixed(2)}%
+                                </span>
+                            </div>
+                        `;
+                    });
+                    listHtml += '</div>';
+                    
+                    // 기존 info-text 영역에 HTML 삽입
+                    $('#info-text').html(
+                        `<div class="mt-3 text-center text-muted small">분석 기준일: <strong>${response.event_date}</strong></div>` + 
+                        listHtml
+                    );
+                } else {
+                    // (예외처리) 구버전 백엔드 호환용
+                    $('#info-text').html(
+                        `분석 기준일: <strong>${response.event_date}</strong><br>${response.detail}`
+                    );
+                }
+
                 $('#result-display').show();
             },
-            error: function(xhr) {
+            error: function (xhr) {
                 $('#loading-indicator').hide();
                 let errorMsg = '서버 통신 중 오류가 발생했습니다.';
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
                 }
-                $('#error-message').html('<strong>예측 중 치명적인 오류:</strong> ' + errorMsg).show();
+                $('#error-message')
+                    .html('<strong>예측 중 치명적인 오류:</strong> ' + errorMsg)
+                    .show();
             }
         });
     });
 </script>
-
-</body>
-</html>
+{% endblock %}

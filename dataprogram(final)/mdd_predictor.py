@@ -78,11 +78,13 @@ def predict_mdd_value(feature_vector: np.ndarray):
     """
     model, scaler = load_mdd_assets()
 
-    # 1. 스케일링 (입력 피처)
-    scaled_input_features = scaler.transform(feature_vector)
+    # 1. 스케일링 (입력 피처) -> 'mdd_prediction_service.py'에서 이미 정규화됨
+    #    (오류 원인) scaled_input_features = scaler.transform(feature_vector)
+    #    -> 이 코드는 12차원 출력용 스케일러로 8차원 입력을 변환하려 시도하므로 삭제.
 
     # 2. 텐서로 변환
-    input_tensor = torch.from_numpy(scaled_input_features).float()
+    # (수정됨) scaled_input_features 대신 feature_vector를 직접 사용
+    input_tensor = torch.from_numpy(feature_vector).float()
 
     with torch.no_grad():
         # 3. 모델 예측 (scaled prediction)

@@ -1,26 +1,85 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>재난 이벤트 섹터 분석</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { padding-top: 20px; }
-        .container { max-width: 1200px; }
-        #results-container { margin-top: 30px; }
-        .chart-grid { display: flex; flex-wrap: wrap; justify-content: space-between; }
-        .individual-chart-item { width: 49%; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="container">
-    <h1 class="mb-4 text-center">섹터별 주식 시장 영향 분석</h1>
-    <p class="text-center text-muted">분석 기간: 이벤트 발생일 기준 전후 3개월</p>
+{% block title %}섹터별 주식 시장 영향 분석{% endblock %}
+{% block nav_sector %}active{% endblock %}
+
+{% block content %}
+<style>
+    /* 결과/차트 레이아웃 */
+    #results-container {
+        margin-top: 30px;
+    }
+
+    .chart-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: space-between;
+    }
+
+    /* 개별 그래프 카드 레이아웃 */
+    .individual-chart-item {
+        width: 49%;
+        margin-bottom: 20px;
+    }
+
+    .individual-chart-item .card-body {
+        padding: 16px;
+    }
+
+    .individual-chart-item h4 {
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    /* 히트맵 스타일 */
+    .heatmap-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .heatmap-tile {
+        flex: 1 0 23%;
+        min-width: 180px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        position: relative;
+    }
+
+    .heatmap-tile .sector-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .heatmap-tile .mdd-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+
+    .heatmap-tile .sub {
+        font-size: 0.75rem;
+        opacity: 0.9;
+    }
+</style>
+
+{% if error %}
+<div class="alert alert-danger mt-3">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="card-box mb-4">
+    <h1 class="page-title text-center">섹터별 주식 시장 영향 분석</h1>
+    <p class="page-subtitle text-center">분석 기간: 이벤트 발생일 기준 전후 3개월</p>
 
     <div class="mt-3 mb-4 text-center">
-        <a href="/individual_analysis" class="btn btn-secondary">개별 종목 분석으로 전환</a>
-        <a href="/predict_mdd" class="btn btn-info">MDD 예측 모델로 전환</a>
+        <a href="/individual_analysis" class="btn btn-outline-secondary btn-sm">개별 종목 분석으로 전환</a>
+        <a href="/predict_mdd" class="btn btn-outline-info btn-sm">MDD 예측 모델로 전환</a>
     </div>
 
     <form id="analysis-form" class="bg-light p-4 rounded shadow-sm">
@@ -36,37 +95,92 @@
         <button type="submit" class="btn btn-primary w-100">분석 시작</button>
         <p class="mt-2 text-end text-sm text-info">JSON API 사용 예시: /api/analyze/힌남노</p>
     </form>
-
-    <div id="results-container">
-        <div id="loading-indicator" class="text-center" style="display:none;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2">데이터를 분석 중입니다. pykrx 서버 조회 및 차트 생성으로 인해 시간이 소요될 수 있습니다...</p>
-        </div>
-        
-        <div id="error-message" class="alert alert-danger" style="display:none;"></div>
-
-        <div id="analysis-info" class="alert alert-info" style="display:none;"></div>
-        
-        <div id="analysis-table" class="mb-5"></div>
-        
-        <h3 id="combined-chart-title" style="display:none;">섹터별 통합 비교 차트</h3>
-        <div id="combined-chart-area" class="text-center mb-5">
-            <img id="combined-chart-img" class="img-fluid" alt="통합 섹터 차트" style="max-height: 500px;">
-        </div>
-        
-        <h3 id="individual-chart-title" style="display:none;">개별 섹터 MDD 차트</h3>
-        <div id="individual-charts-area" class="chart-grid">
-            </div>
-
-    </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<div id="results-container">
+    <!-- 로딩 인디케이터 -->
+    <div id="loading-indicator" class="text-center" style="display:none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">
+            데이터를 분석 중입니다. pykrx 서버 조회 및 차트 생성으로 인해 시간이 소요될 수 있습니다...
+        </p>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div id="error-message" class="alert alert-danger" style="display:none;"></div>
+
+    <!-- 분석 정보 -->
+    <div id="analysis-info" class="alert alert-info" style="display:none;"></div>
+
+    <!-- 요약 테이블 -->
+    <div id="analysis-table" class="mb-5"></div>
+
+    <!-- 섹터 히트맵 -->
+    <h3 id="heatmap-title" style="display:none;">섹터 히트맵 (MDD 기준)</h3>
+    <div id="heatmap-area" class="mb-5 heatmap-grid"></div>
+
+    <!-- 개별 섹터 차트 -->
+    <h3 id="individual-chart-title" style="display:none;">개별 섹터 MDD 차트</h3>
+    <div id="individual-charts-area" class="chart-grid"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
+    // 최종 수익률 기준 색 (red ↔ green)
+    function getColorByReturn(ret) {
+        const r = Math.max(-10, Math.min(10, ret || 0));
+
+        if (r > 3)   return '#006400';   // 진한 초록
+        if (r > 1)   return '#228B22';   // 초록
+        if (r > 0)   return '#7CFC00';   // 연한 초록
+        if (r === 0) return '#cccccc';   // 회색 (보합)
+
+        // 음수 구간
+        if (r < -3)  return '#8B0000';   // 진한 빨강
+        if (r < -1)  return '#B22222';   // 빨강
+        return '#FA8072';                // 연한 빨강
+    }
+
+    // 섹터 히트맵 생성
+    function buildHeatmap(sectorResults) {
+        const $area = $('#heatmap-area');
+        $area.empty();
+
+        if (!sectorResults || sectorResults.length === 0) {
+            $('#heatmap-title').hide();
+            return;
+        }
+
+        $('#heatmap-title').show();
+
+        sectorResults.forEach(function(row) {
+            const name = row['Sector Name'];
+            const mdd = row['MDD (%)'];
+            const finalReturn = row['Final Return (%)'];
+            const finalDd = row['Final DD (%)'];
+
+            const color = getColorByReturn(finalReturn);
+
+            const tileHtml = `
+                <div class="heatmap-tile" style="background:${color};">
+                    <div class="sector-name">${name}</div>
+                    <div class="mdd-value">${mdd}%</div>
+                    <div class="sub">
+                        최종 수익률: ${finalReturn}%<br>
+                        최종 낙폭: ${finalDd}%
+                    </div>
+                </div>
+            `;
+            $area.append(tileHtml);
+        });
+    }
+
+    // 폼 제출 핸들러
     $('#analysis-form').submit(function(e) {
-        e.preventDefault(); 
+        e.preventDefault();
 
         const eventName = $('#event-select').val();
         if (!eventName) {
@@ -76,9 +190,12 @@
 
         // --- 초기화 및 로딩 설정 ---
         $('#loading-indicator').show();
-        $('#analysis-info, #analysis-table, #error-message, #combined-chart-title, #individual-chart-title').hide().empty();
+        $('#analysis-info, #analysis-table, #error-message, #individual-chart-title')
+            .hide().empty();
         $('#individual-charts-area').empty();
-        $('#combined-chart-img').attr('src', '');
+
+        $('#heatmap-title').hide();
+        $('#heatmap-area').empty();
 
         $.ajax({
             type: 'POST',
@@ -87,7 +204,7 @@
             dataType: 'json',
             success: function(response) {
                 $('#loading-indicator').hide();
-                
+
                 if (response.error) {
                     $('#error-message').html('<strong>분석 실패:</strong> ' + response.error).show();
                     return;
@@ -102,27 +219,30 @@
 
                 // 2. 테이블 결과 표시 (MDD 값 포함)
                 $('#analysis-table').html(
-                    `<h3>섹터별 성과 요약 (MDD 기준 정렬)</h3>` + 
-                    `<div style="overflow-x:auto;">` + // 가로 스크롤 추가
+                    `<h3>섹터별 성과 요약 (MDD 기준 정렬)</h3>` +
+                    `<div style="overflow-x:auto;">` +
                     response.table_html +
                     `</div>`
                 );
 
-                // 3. 통합 차트 표시
-                if (response.combined_chart_base64) {
-                    $('#combined-chart-img').attr('src', 'data:image/png;base64,' + response.combined_chart_base64);
-                    $('#combined-chart-title').show().html('섹터별 통합 비교 차트');
+                // 2-1. 섹터 히트맵 생성
+                if (response.sector_results) {
+                    buildHeatmap(response.sector_results);
                 }
 
-                // 4. 개별 차트 동적 표시
+                // 3. 개별 차트 동적 표시 (카드 형태)
                 if (response.individual_charts && response.individual_charts.length > 0) {
-                    $('#individual-chart-title').show().html('개별 섹터 MDD 차트');
+                    $('#individual-chart-title').show().text('개별 섹터 MDD 차트');
                     let chartHtml = '';
-                    response.individual_charts.forEach(chart => {
+                    response.individual_charts.forEach(function(chart) {
                         chartHtml += `
-                            <div class="individual-chart-item">
-                                <h4>${chart.name}</h4>
-                                <img src="data:image/png;base64,${chart.base64_img}" class="img-fluid" alt="${chart.name} 차트">
+                            <div class="individual-chart-item card shadow-sm">
+                                <div class="card-body">
+                                    <h4 class="card-title text-center mb-3">${chart.name}</h4>
+                                    <img src="data:image/png;base64,${chart.base64_img}"
+                                         class="img-fluid"
+                                         alt="${chart.name} 차트">
+                                </div>
                             </div>
                         `;
                     });
@@ -140,6 +260,4 @@
         });
     });
 </script>
-
-</body>
-</html>
+{% endblock %}
