@@ -173,7 +173,7 @@
             const $row = $('#disaster-news-row');
             $row.empty();
 
-            // ✅ 내가 원하는 순서 배열
+            // 내가 원하는 순서 배열
             const disasterOrder = [
                 '태풍',
                 '지진',
@@ -187,8 +187,6 @@
 
             disasterOrder.forEach(function(disaster) {
                 const articles = news[disaster] || [];
-                // 아무 뉴스도 없으면 스킵하고 싶으면 이 조건 추가:
-                // if (!articles.length) return;
 
                 let articlesHtml = '';
                 if (articles.length === 0) {
