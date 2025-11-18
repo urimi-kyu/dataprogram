@@ -274,6 +274,14 @@ def run_analysis_for_event(event_name):
 
     df_results = df_results.sort_values(by='MDD (%)', ascending=False)
 
+    target_name = '코스피 전체 시장'
+    
+    if target_name in df_results['Sector Name'].values:
+        target_row = df_results[df_results['Sector Name'] == target_name]
+        rest_rows = df_results[df_results['Sector Name'] != target_name]
+        
+        df_results = pd.concat([rest_rows, target_row], ignore_index=True)
+
     # --- 4. 그래프 생성 및 Base64 인코딩 로직 ---
 
     # 4-1. 통합 비교 차트 생성 (Base64)
