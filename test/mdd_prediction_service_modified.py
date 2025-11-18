@@ -153,30 +153,37 @@ def get_today_mdd_prediction(main_keyword):
     }
 
 
-# --- 4. (추가됨) 단독 실행을 위한 테스트 블록 ---
+# --- 4. (수정됨) 알아서 모든 키워드 체크 후 실행하는 테스트 블록 ---
 
 if __name__ == "__main__":
-    
+    from pprint import pprint
+
     print("======================================================")
-    print("  [MDD Prediction Service] 단독 실행 테스트 모드")
+    print("  [MDD Prediction Service] 통합 모니터링 시작")
     print("======================================================")
-    
-    # ⚠️ 경고: Naver API (CLIENT_ID, CLIENT_SECRET)가 유효해야 합니다.
-    
-    # 테스트용 메인 키워드 (app.py에서 전달받는다고 가정)
-    TEST_KEYWORD = "태풍"
-    
-    print(f"\n* 테스트 시작 (메인 키워드: '{TEST_KEYWORD}')\n")
-    
+
+    # 사용자가 특정 재난을 고르지 않아도, 시스템이 설정된 모든 키워드를 검사함
+    # 리포트 제목(Event Name)을 'Daily_Total_Monitoring'으로 지정
+    REPORT_LABEL = "실시간_재난_통합_모니터링"
+
+    print(f"\n* 설정된 모든 재난 키워드 크롤링 및 분석 시작...\n")
+
     try:
-        # 메인 예측 함수 호출
-        prediction_result = get_today_mdd_prediction(TEST_KEYWORD)
-        
+        # 여기서 'REPORT_LABEL'은 결과표의 제목일 뿐, 
+        # 실제로는 함수 안에서 산불, 지진, 태풍 등 모든 키워드를 다 검색합니다.
+        prediction_result = get_today_mdd_prediction(REPORT_LABEL)
+
         print("\n\n======================================================")
-        print("  [최종 예측 결과]")
+        print(f"  [최종 분석 결과: {REPORT_LABEL}]")
         print("======================================================")
-        # 결과 예쁘게 출력
-        pprint(prediction_result)
         
+        if 'error' in prediction_result:
+            print(f"❌ 오류 발생: {prediction_result['error']}")
+        else:
+            # 결과 보기 좋게 출력
+            print(f"📅 예측 기준일: {prediction_result['event_date']}")
+            print(f"📉 최대 위험 예상(MDD): {prediction_result['predicted_mdd']}")
+            print(f"📋 상세 내용: {prediction_result['detail']}")
+
     except Exception as e:
-        print(f"\n❌ 치명적인 오류 발생: {e}", file=sys.stderr)
+        print(f"\n❌ 실행 중 치명적인 오류 발생: {e}", file=sys.stderr)
